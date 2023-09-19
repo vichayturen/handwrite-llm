@@ -65,8 +65,8 @@ class PositionEmbedding(nn.Module):
     def __init__(self, config: Config):
         super().__init__()
         self.dropout = nn.Dropout(config.dropout)
-        self.P = torch.zeros((1, config.max_context_length, config.num_hiddens))
-        X = torch.arange(config.max_context_length, dtype=torch.float32).reshape(-1, 1) / torch.pow(10000, torch.arange(0, config.num_hiddens, 2, dtype=torch.float32) / config.num_hiddens)
+        self.P = torch.zeros((1, config.max_position_embeddings, config.num_hiddens))
+        X = torch.arange(config.max_position_embeddings, dtype=torch.float32).reshape(-1, 1) / torch.pow(10000, torch.arange(0, config.num_hiddens, 2, dtype=torch.float32) / config.num_hiddens)
         self.P[:, :, 0::2] = torch.sin(X)
         self.P[:, :, 1::2] = torch.cos(X)
 
