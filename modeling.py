@@ -74,6 +74,7 @@ class PositionEmbedding(nn.Module):
         X = X + self.P[:, :X.shape[1], :]
         return self.dropout(X)
 
+
 class AddNorm(nn.Module):
     def __init__(self, config: Config, **kwargs):
         super().__init__(**kwargs)
