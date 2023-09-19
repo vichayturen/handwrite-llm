@@ -21,6 +21,7 @@ def _make_causal_mask(
         mask = torch.cat([torch.zeros(tgt_len, past_key_values_length, dtype=dtype, device=device), mask], dim=-1)
     return mask[None, None, :, :].expand(bsz, 1, tgt_len, tgt_len + past_key_values_length)
 
+
 def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] = None):
     """
     Expands attention_mask from `[bsz, seq_len]` to `[bsz, 1, tgt_seq_len, src_seq_len]`.
@@ -30,6 +31,7 @@ def _expand_mask(mask: torch.Tensor, dtype: torch.dtype, tgt_len: Optional[int] 
     expanded_mask = mask[:, None, None, :].expand(bsz, 1, tgt_len, src_len).to(dtype)
     inverted_mask = 1.0 - expanded_mask
     return inverted_mask.masked_fill(inverted_mask.to(torch.bool), torch.finfo(dtype).min)
+
 
 def prepare_decoder_attention_mask(attention_mask, input_shape, inputs_embeds, past_key_values_length):
     # create causal mask
@@ -51,6 +53,7 @@ def prepare_decoder_attention_mask(attention_mask, input_shape, inputs_embeds, p
             expanded_attn_mask if combined_attention_mask is None else expanded_attn_mask + combined_attention_mask
         )
     return combined_attention_mask
+
 
 class CasualLMOutput:
     def __init__(self, logits: torch.Tensor, past_key_values: list):
@@ -78,6 +81,7 @@ class AddNorm(nn.Module):
 
     def forward(self, x: torch.Tensor, y: torch.Tensor):
         return self.ln(self.dropout(y) + x)
+
 
 class MultiHeadSelfAttention(nn.Module):
     def __init__(self, config: Config, **kwargs):
@@ -111,6 +115,7 @@ class MultiHeadSelfAttention(nn.Module):
         output = self.Wo(output)
         return output, past_key_value
 
+
 class MLP(nn.Module):
     def __init__(self, config: Config, **kwargs):
         super().__init__(**kwargs)
@@ -135,6 +140,7 @@ class DecoderBlock(nn.Module):
         y = self.mlp(x)
         y = self.add_norm2(x, y)
         return y, past_key_value
+
 
 class TransformerDecoder(nn.Module):
     def __init__(self, config: Config, **kwargs):
@@ -166,6 +172,7 @@ class TransformerDecoder(nn.Module):
                 past_key_values[idx] = past_key_value
         hidden_states = self.post_ln(hidden_states)
         return hidden_states, past_key_values
+
 
 class CasualLM(nn.Module):
     def __init__(self, config: Config, **kwargs):
