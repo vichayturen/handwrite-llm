@@ -5,6 +5,11 @@ from torch.nn import functional as F
 from configuration import Config
 
 
+class CasualLMOutput:
+    def __init__(self, logits: torch.Tensor, past_key_values: list):
+        self.logits = logits
+        self.past_key_values = past_key_values
+
 class PositionEmbedding(nn.Module):
     def __init__(self, config: Config):
         super().__init__()
@@ -14,7 +19,7 @@ class PositionEmbedding(nn.Module):
         self.P[:, :, 0::2] = torch.sin(X)
         self.P[:, :, 1::2] = torch.cos(X)
 
-    def forward(self, X):
+    def forward(self, X: torch.Tensor):
         X = X + self.P[:, :X.shape[1], :]
         return self.dropout(X)
 
@@ -24,7 +29,7 @@ class AddNorm(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
         self.ln = nn.LayerNorm(config.num_hiddens)
 
-    def forward(self, x, y):
+    def forward(self, x: torch.Tensor, y: torch.Tensor):
         return self.ln(self.dropout(y) + x)
 
 class MultiHeadSelfAttention(nn.Module):
@@ -38,7 +43,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.Wo = nn.Linear(config.num_hiddens, config.num_hiddens, bias=False)
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, x, past_key_value=None, use_cache: bool=False):
+    def forward(self, x: torch.Tensor, past_key_value=None, use_cache: bool=False):
         q = self.Wq(x)
         k = self.Wk(x)
         v = self.Wv(x)
@@ -53,7 +58,7 @@ class MultiHeadSelfAttention(nn.Module):
         output = torch.matmul(q, k.transpose(2, 3)) / math.sqrt(self.head_dim)
         output = self.dropout(F.softmax(output, dim=-1))
         output = torch.matmul(output, v).transpose(1, 2).contiguous()
-        output = output.reshape(q.size(0), q.size(1), -1)
+        output = output.reshape(output.size(0), output.size(1), -1)
         output = self.Wo(output)
         return output, past_key_value
 
@@ -64,7 +69,7 @@ class MLP(nn.Module):
         self.relu = nn.ReLU()
         self.linear2 = nn.Linear(config.num_mlp_intermediate, config.num_hiddens)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         return self.linear2(self.relu(self.linear1(x)))
 
 class DecoderBlock(nn.Module):
@@ -75,7 +80,7 @@ class DecoderBlock(nn.Module):
         self.mlp = MLP(config)
         self.add_norm2 = AddNorm(config)
 
-    def forward(self, x, past_key_value=None, use_cache: bool=False):
+    def forward(self, x: torch.Tensor, past_key_value=None, use_cache: bool=False):
         y, past_key_value = self.attention(x, past_key_value, use_cache)
         x = self.add_norm1(x, y)
         y = self.mlp(x)
@@ -110,10 +115,10 @@ class CasualLM(nn.Module):
         self.decoder = TransformerDecoder(config)
         self.lm_head = nn.Linear(config.num_hiddens, config.vocab_size)
 
-    def forward(self, x: torch.LongTensor, past_key_values=None, use_cache: bool=False):
+    def forward(self, x: torch.LongTensor, past_key_values=None, use_cache: bool=False) -> CasualLMOutput:
         hidden_states, past_key_values = self.decoder(x, past_key_values, use_cache)
         logits = self.lm_head(hidden_states)
-        return logits, past_key_values
+        return CasualLMOutput(logits, past_key_values)
     
     def generate(self, x: torch.LongTensor, max_new_tokens: int=10):
         pass
