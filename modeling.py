@@ -7,7 +7,7 @@ from typing import Optional
 
 
 def _make_causal_mask(
-    input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
+        input_ids_shape: torch.Size, dtype: torch.dtype, device: torch.device, past_key_values_length: int = 0
 ):
     """
     Make causal mask used for bi-directional self-attention.
@@ -66,7 +66,11 @@ class PositionEmbedding(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(config.dropout)
         self.P = torch.zeros((1, config.max_position_embeddings, config.num_hiddens))
-        X = torch.arange(config.max_position_embeddings, dtype=torch.float32).reshape(-1, 1) / torch.pow(10000, torch.arange(0, config.num_hiddens, 2, dtype=torch.float32) / config.num_hiddens)
+        X = torch.arange(config.max_position_embeddings, dtype=torch.float32).reshape(-1, 1) / torch.pow(10000,
+                                                                                                         torch.arange(0,
+                                                                                                                      config.num_hiddens,
+                                                                                                                      2,
+                                                                                                                      dtype=torch.float32) / config.num_hiddens)
         self.P[:, :, 0::2] = torch.sin(X)
         self.P[:, :, 1::2] = torch.cos(X)
 
@@ -96,7 +100,8 @@ class MultiHeadSelfAttention(nn.Module):
         self.Wo = nn.Linear(config.num_hiddens, config.num_hiddens, bias=False)
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor=None, past_key_value=None, use_cache: bool=False):
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor = None, past_key_value=None,
+                use_cache: bool = False):
         q = self.Wq(x)
         k = self.Wk(x)
         v = self.Wv(x)
@@ -128,6 +133,7 @@ class MLP(nn.Module):
     def forward(self, x: torch.Tensor):
         return self.linear2(self.relu(self.linear1(x)))
 
+
 class DecoderBlock(nn.Module):
     def __init__(self, config: Config, **kwargs):
         super().__init__(**kwargs)
@@ -136,7 +142,8 @@ class DecoderBlock(nn.Module):
         self.mlp = MLP(config)
         self.add_norm2 = AddNorm(config)
 
-    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor=None, past_key_value=None, use_cache: bool=False):
+    def forward(self, x: torch.Tensor, attention_mask: torch.Tensor = None, past_key_value=None,
+                use_cache: bool = False):
         y, past_key_value = self.attention(x, attention_mask, past_key_value, use_cache)
         x = self.add_norm1(x, y)
         y = self.mlp(x)
@@ -153,7 +160,8 @@ class TransformerDecoder(nn.Module):
         self.decoder_blocks = nn.ModuleList([DecoderBlock(config) for _ in range(config.num_layers)])
         self.post_ln = nn.LayerNorm(config.num_hiddens)
 
-    def forward(self, x: torch.LongTensor, attention_mask: torch.Tensor=None, past_key_values=None, use_cache: bool=False):
+    def forward(self, x: torch.LongTensor, attention_mask: torch.Tensor = None, past_key_values=None,
+                use_cache: bool = False):
         embedding = self.embedding(x)
         hidden_states = self.pos_embedding(embedding)
         past_key_values_length = 0
@@ -164,7 +172,8 @@ class TransformerDecoder(nn.Module):
             seq_length = x.size(1)
             seq_length_with_past = seq_length + past_key_values_length
             attention_mask = torch.ones((batch_size, seq_length_with_past), dtype=torch.bool)
-        attention_mask = prepare_decoder_attention_mask(attention_mask, (batch_size, seq_length), embedding, past_key_values_length)
+        attention_mask = prepare_decoder_attention_mask(attention_mask, (batch_size, seq_length), embedding,
+                                                        past_key_values_length)
         if use_cache and past_key_values is None:
             past_key_values = [None] * self.num_layers
         for idx, decoder_block in enumerate(self.decoder_blocks):
@@ -182,10 +191,11 @@ class CasualLM(nn.Module):
         self.decoder = TransformerDecoder(config)
         self.lm_head = nn.Linear(config.num_hiddens, config.vocab_size)
 
-    def forward(self, x: torch.LongTensor, attention_mask: torch.Tensor=None, past_key_values=None, use_cache: bool=False) -> CasualLMOutput:
+    def forward(self, x: torch.LongTensor, attention_mask: torch.Tensor = None, past_key_values=None,
+                use_cache: bool = False) -> CasualLMOutput:
         hidden_states, past_key_values = self.decoder(x, attention_mask, past_key_values, use_cache)
         logits = self.lm_head(hidden_states)
         return CasualLMOutput(logits, past_key_values)
-    
-    def generate(self, x: torch.LongTensor, max_new_tokens: int=10):
+
+    def generate(self, x: torch.LongTensor, max_new_tokens: int = 10):
         pass
