@@ -1,9 +1,10 @@
 import math
+from typing import Optional
+
 import torch
 from torch import nn
 from torch.nn import functional as F
 from configuration import Config
-from typing import Optional
 
 
 def _make_causal_mask(
@@ -66,17 +67,19 @@ class PositionEmbedding(nn.Module):
         super().__init__()
         self.dropout = nn.Dropout(config.dropout)
         self.P = torch.zeros((1, config.max_position_embeddings, config.num_hiddens))
-        X = torch.arange(config.max_position_embeddings, dtype=torch.float32).reshape(-1, 1) / torch.pow(10000,
-                                                                                                         torch.arange(0,
-                                                                                                                      config.num_hiddens,
-                                                                                                                      2,
-                                                                                                                      dtype=torch.float32) / config.num_hiddens)
-        self.P[:, :, 0::2] = torch.sin(X)
-        self.P[:, :, 1::2] = torch.cos(X)
+        x = torch.arange(
+            config.max_position_embeddings,
+            dtype=torch.float32
+        ).reshape(-1, 1) / torch.pow(
+            10000,
+            torch.arange(0, config.num_hiddens, 2, dtype=torch.float32) / config.num_hiddens
+        )
+        self.P[:, :, 0::2] = torch.sin(x)
+        self.P[:, :, 1::2] = torch.cos(x)
 
-    def forward(self, X: torch.Tensor):
-        X = X + self.P[:, :X.shape[1], :]
-        return self.dropout(X)
+    def forward(self, x: torch.Tensor):
+        x = x + self.P[:, :x.shape[1], :]
+        return self.dropout(x)
 
 
 class AddNorm(nn.Module):
@@ -198,4 +201,5 @@ class CasualLM(nn.Module):
         return CasualLMOutput(logits, past_key_values)
 
     def generate(self, x: torch.LongTensor, max_new_tokens: int = 10):
+        # TODO: Implement
         pass
